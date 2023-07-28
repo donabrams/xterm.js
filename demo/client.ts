@@ -264,8 +264,10 @@ function createTerminal(): void {
   addons.fit.instance = new FitAddon();
   addons.unicode11.instance = new Unicode11Addon();
   try {  // try to start with webgl renderer (might throw on older safari/webkit)
-    //TODO: replace this with SkiaAddon ASAP
-    addons.webgl.instance = new WebglAddon();
+    //TODO: figure out a better way to change renderer
+    //addons.webgl.instance = new WebglAddon();
+    addons.skia.instance = new SkiaAddon();
+    console.log("skiaAddon instance loaded");
   } catch (e) {
     console.warn(e);
   }
@@ -307,6 +309,7 @@ function createTerminal(): void {
     }
   }
   if (addons.skia.instance) {
+    console.log("loading skia");
     try {
       typedTerm.loadAddon(addons.skia.instance);
       term.open(terminalContainer);
@@ -760,7 +763,7 @@ function writeCustomGlyphHandler(): void {
 }
 
 function loadTest(): void {
-  const rendererName = addons.webgl.instance ? 'webgl' : !!addons.canvas.instance ? 'canvas' : 'dom';
+  const rendererName = 'skia'; //addons.webgl.instance ? 'webgl' : !!addons.canvas.instance ? 'canvas' : 'dom';
   const testData = [];
   let byteCount = 0;
   for (let i = 0; i < 50; i++) {

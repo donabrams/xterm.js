@@ -5,6 +5,8 @@
 
 const path = require('path');
 
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+
 const addonName = 'SkiaAddon';
 const mainFile = 'xterm-addon-skia.js';
 
@@ -35,5 +37,14 @@ module.exports = {
     library: addonName,
     libraryTarget: 'umd'
   },
-  mode: 'production'
+  mode: 'production',
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: "node_modules/canvaskit-wasm/bin/canvaskit.wasm",
+          to: "canvaskit.wasm",
+        },
+      ]})
+  ]
 };

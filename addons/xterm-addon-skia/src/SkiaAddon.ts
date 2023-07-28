@@ -30,6 +30,7 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
         this._canvasKit = canvasKit;
         this.activate(terminal);
       })
+      // TODO: what I can do with a caught error here?
       return;
     }
 

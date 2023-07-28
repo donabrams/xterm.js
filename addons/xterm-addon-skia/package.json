@@ -28,6 +28,7 @@
     "canvaskit-wasm": "^0.38.2"
   },
   "devDependencies": {
-    "@webgpu/types": "^0.1.34"
+    "@webgpu/types": "^0.1.34",
+    "copy-webpack-plugin": "^11.0.0"
   }
 }
