@@ -26,6 +26,5 @@ demo/dist/
 .benchmark/
 timeline/
 
-# ignore yarn 3.6+ (berry) files for now
-.yarnrc.yml
+# ignore yarn 3.6+ (berry) modules
 .yarn/
