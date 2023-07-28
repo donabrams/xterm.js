@@ -24,8 +24,7 @@
     "downlevelIteration": true,
     "types": [
       "../../../node_modules/@types/mocha"
-    ],
-    "composite": true
+    ]
   },
   "include": [
     "./**/*",

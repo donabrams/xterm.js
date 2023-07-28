@@ -1,4 +1,3 @@
-/// <reference types="@webgpu/types" />
 /**
  * Copyright (c) 2023 Donald Abrams. All rights reserved.
  * @license MIT
@@ -8,7 +7,7 @@ import { ICharacterJoinerService, ICharSizeService, ICoreBrowserService, IRender
 import { ITerminal } from 'browser/Types';
 import { Disposable, toDisposable } from 'common/Lifecycle';
 import { ICoreService, IDecorationService, IOptionsService } from 'common/services/Services';
-import { IDisposable, ITerminalAddon, Terminal } from 'xterm';
+import { ITerminalAddon, Terminal } from 'xterm';
 import { SkiaRenderer } from './SkiaRenderer';
 import { CanvasKitInit } from "./canvaskit";
 import type { CanvasKit } from "canvaskit-wasm";

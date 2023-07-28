@@ -15,6 +15,7 @@ import { CanvasAddon } from '../addons/xterm-addon-canvas/out/CanvasAddon';
 import { FitAddon } from '../addons/xterm-addon-fit/out/FitAddon';
 import { SearchAddon, ISearchOptions } from '../addons/xterm-addon-search/out/SearchAddon';
 import { SerializeAddon } from '../addons/xterm-addon-serialize/out/SerializeAddon';
+import { SkiaAddon } from '../addons/xterm-addon-skia/out/SkiaAddon';
 import { WebLinksAddon } from '../addons/xterm-addon-web-links/out/WebLinksAddon';
 import { WebglAddon } from '../addons/xterm-addon-webgl/out/WebglAddon';
 import { Unicode11Addon } from '../addons/xterm-addon-unicode11/out/Unicode11Addon';
@@ -26,6 +27,7 @@ import { LigaturesAddon } from '../addons/xterm-addon-ligatures/out/LigaturesAdd
 // import { FitAddon } from 'xterm-addon-fit';
 // import { SearchAddon, ISearchOptions } from 'xterm-addon-search';
 // import { SerializeAddon } from 'xterm-addon-serialize';
+// import { SkiaAddon } from 'xterm-addon-skia';
 // import { WebLinksAddon } from 'xterm-addon-web-links';
 // import { WebglAddon } from 'xterm-addon-webgl';
 // import { Unicode11Addon } from 'xterm-addon-unicode11';
@@ -42,6 +44,7 @@ export interface IWindowWithTerminal extends Window {
   FitAddon?: typeof FitAddon; // eslint-disable-line @typescript-eslint/naming-convention
   SearchAddon?: typeof SearchAddon; // eslint-disable-line @typescript-eslint/naming-convention
   SerializeAddon?: typeof SerializeAddon; // eslint-disable-line @typescript-eslint/naming-convention
+  SkiaAddon?: typeof SkiaAddon; // eslint-disable-line @typescript-eslint/naming-convention
   WebLinksAddon?: typeof WebLinksAddon; // eslint-disable-line @typescript-eslint/naming-convention
   WebglAddon?: typeof WebglAddon; // eslint-disable-line @typescript-eslint/naming-convention
   Unicode11Addon?: typeof Unicode11Addon; // eslint-disable-line @typescript-eslint/naming-convention
@@ -55,7 +58,7 @@ let socketURL;
 let socket;
 let pid;
 
-type AddonType = 'attach' | 'canvas' | 'fit' | 'search' | 'serialize' | 'unicode11' | 'web-links' | 'webgl' | 'ligatures';
+type AddonType = 'attach' | 'canvas' | 'fit' | 'search' | 'serialize' | 'unicode11' | 'web-links' | 'webgl' | 'ligatures' | 'skia';
 
 interface IDemoAddon<T extends AddonType> {
   name: T;
@@ -66,10 +69,11 @@ interface IDemoAddon<T extends AddonType> {
         T extends 'fit' ? typeof FitAddon :
           T extends 'search' ? typeof SearchAddon :
             T extends 'serialize' ? typeof SerializeAddon :
-              T extends 'web-links' ? typeof WebLinksAddon :
-                T extends 'unicode11' ? typeof Unicode11Addon :
-                  T extends 'ligatures' ? typeof LigaturesAddon :
-                    typeof WebglAddon
+              T extends 'skia' ? typeof SkiaAddon :
+                T extends 'web-links' ? typeof WebLinksAddon :
+                  T extends 'unicode11' ? typeof Unicode11Addon :
+                    T extends 'ligatures' ? typeof LigaturesAddon :
+                      typeof WebglAddon
   );
   instance?: (
     T extends 'attach' ? AttachAddon :
@@ -77,11 +81,12 @@ interface IDemoAddon<T extends AddonType> {
         T extends 'fit' ? FitAddon :
           T extends 'search' ? SearchAddon :
             T extends 'serialize' ? SerializeAddon :
-              T extends 'web-links' ? WebLinksAddon :
-                T extends 'webgl' ? WebglAddon :
-                  T extends 'unicode11' ? typeof Unicode11Addon :
-                    T extends 'ligatures' ? typeof LigaturesAddon :
-                      never
+              T extends 'skia' ? SkiaAddon :
+                T extends 'web-links' ? WebLinksAddon :
+                  T extends 'webgl' ? WebglAddon :
+                    T extends 'unicode11' ? typeof Unicode11Addon :
+                      T extends 'ligatures' ? typeof LigaturesAddon :
+                        never
   );
 }
 
@@ -91,10 +96,11 @@ const addons: { [T in AddonType]: IDemoAddon<T> } = {
   fit: { name: 'fit', ctor: FitAddon, canChange: false },
   search: { name: 'search', ctor: SearchAddon, canChange: true },
   serialize: { name: 'serialize', ctor: SerializeAddon, canChange: true },
+  skia: { name: 'skia', ctor: SkiaAddon, canChange: true },
   'web-links': { name: 'web-links', ctor: WebLinksAddon, canChange: true },
   webgl: { name: 'webgl', ctor: WebglAddon, canChange: true },
   unicode11: { name: 'unicode11', ctor: Unicode11Addon, canChange: true },
-  ligatures: { name: 'ligatures', ctor: LigaturesAddon, canChange: true }
+  ligatures: { name: 'ligatures', ctor: LigaturesAddon, canChange: true },
 };
 
 let terminalContainer = document.getElementById('terminal-container');
@@ -160,6 +166,7 @@ const disposeRecreateButtonHandler: () => void = () => {
     addons.fit.instance = undefined;
     addons.search.instance = undefined;
     addons.serialize.instance = undefined;
+    addons.skia.instance = undefined;
     addons.unicode11.instance = undefined;
     addons.ligatures.instance = undefined;
     addons['web-links'].instance = undefined;
@@ -206,6 +213,7 @@ if (document.location.pathname === '/test') {
   window.FitAddon = FitAddon;
   window.SearchAddon = SearchAddon;
   window.SerializeAddon = SerializeAddon;
+  window.SkiaAddon = SkiaAddon;
   window.Unicode11Addon = Unicode11Addon;
   window.LigaturesAddon = LigaturesAddon;
   window.WebLinksAddon = WebLinksAddon;
@@ -256,6 +264,7 @@ function createTerminal(): void {
   addons.fit.instance = new FitAddon();
   addons.unicode11.instance = new Unicode11Addon();
   try {  // try to start with webgl renderer (might throw on older safari/webkit)
+    //TODO: replace this with SkiaAddon ASAP
     addons.webgl.instance = new WebglAddon();
   } catch (e) {
     console.warn(e);
@@ -295,6 +304,16 @@ function createTerminal(): void {
       console.warn('error during loading webgl addon:', e);
       addons.webgl.instance.dispose();
       addons.webgl.instance = undefined;
+    }
+  }
+  if (addons.skia.instance) {
+    try {
+      typedTerm.loadAddon(addons.skia.instance);
+      term.open(terminalContainer);
+    } catch (e) {
+      console.warn('error during loading skia addon:', e);
+      addons.skia.instance.dispose();
+      addons.skia.instance = undefined;
     }
   }
   if (!typedTerm.element) {
