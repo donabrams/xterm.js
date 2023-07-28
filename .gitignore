@@ -25,3 +25,7 @@ demo/dist/
 # dont commit benchmark folders
 .benchmark/
 timeline/
+
+# ignore yarn 3.6+ (berry) files for now
+.yarnrc.yml
+.yarn/

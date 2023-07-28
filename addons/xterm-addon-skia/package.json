@@ -1,0 +1,33 @@
+{
+  "name": "xterm-addon-skia",
+  "version": "0.0.0",
+  "author": {
+    "name": "Donald Abrams"
+  },
+  "main": "lib/xterm-addon-skia.js",
+  "types": "typings/xterm-addon-skia.d.ts",
+  "repository": "https://github.com/donabrams/xterm.js",
+  "license": "MIT",
+  "keywords": [
+    "terminal",
+    "skia",
+    "webgpu",
+    "xterm",
+    "xterm.js"
+  ],
+  "scripts": {
+    "build": "../../node_modules/.bin/tsc -p .",
+    "prepackage": "npm run build",
+    "package": "../../node_modules/.bin/webpack",
+    "prepublishOnly": "npm run package"
+  },
+  "peerDependencies": {
+    "xterm": "^5.0.0"
+  },
+  "dependencies": {
+    "canvaskit-wasm": "^0.38.2"
+  },
+  "devDependencies": {
+    "@webgpu/types": "^0.1.34"
+  }
+}
