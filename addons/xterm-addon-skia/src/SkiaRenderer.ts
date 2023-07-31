@@ -5,35 +5,41 @@
  * @license MIT
  */
 import { IRenderDimensions, IRenderer, IRequestRedrawEvent, ITextureAtlas } from 'browser/renderer/shared/Types';
+import { ICoreBrowserService, ICharSizeService } from 'browser/services/Services';
+
 import { createRenderDimensions } from 'browser/renderer/shared/RendererUtils';
 import { IEvent } from 'common/EventEmitter';
 import { IDisposable } from 'common/Types';
-// TODO: I'd rather exclusively use ITerminal but it's too convoluted currently
 import { Terminal } from 'xterm';
 import { ITerminal } from 'browser/Types';
 import type { CanvasKit, Surface } from "canvaskit-wasm";
+import { IOptionsService } from 'common/services/Services';
 
 const disposableStub: IDisposable = { dispose: () => {} };
 
 export class SkiaRenderer implements IRenderer {
-  private _devicePixelRatio: number = 2
+  private _devicePixelRatio: number = 0
   private _canvas: HTMLCanvasElement;
   private _canvasKit: CanvasKit;
   private _surface: Surface;
+  private _core: ITerminal;
   public readonly dimensions: IRenderDimensions = createRenderDimensions();
 
-  constructor(terminal: Terminal, canvasKit: CanvasKit) {
+  constructor(
+      private readonly _terminal: Terminal,
+      canvasKit: CanvasKit,
+      private readonly _coreBrowserService: ICoreBrowserService,
+      private readonly _charSizeService: ICharSizeService,
+      private readonly _optionsService: IOptionsService) {
     this._canvasKit = canvasKit;
-    // TODO: update _devicePixelRatio via _coreBrowserService.dpr
-    this._canvas = document.createElement('canvas');
-    // TODO: use real dimensions here
-    this._canvas.width = 400;
-    this._canvas.height = 400;
-    this._canvas.style.width = `400px`;
-    this._canvas.style.height = `400px`;
+    this._core = (this._terminal as any)._core as ITerminal;
 
-    const core = (terminal as any)._core as ITerminal;
-    core.screenElement!.appendChild(this._canvas);
+    // setup initial canvas element
+    this._devicePixelRatio = this._coreBrowserService.dpr
+    this._canvas = document.createElement('canvas');
+    // abuse handleDevicePixelRatioChange to setup _canvas appropriately
+    this.handleDevicePixelRatioChange();
+    this._core.screenElement!.appendChild(this._canvas);
 
     // TODO: try MakeGPUCanvasSurface after this works initially
     const surface = canvasKit.MakeWebGLCanvasSurface(this._canvas);
@@ -60,15 +66,14 @@ export class SkiaRenderer implements IRenderer {
   }
 
   dispose() {}
-  handleDevicePixelRatioChange(): void {
+  public handleDevicePixelRatioChange(): void {
     // If the device pixel ratio changed, the char atlas needs to be regenerated
     // and the terminal needs to refreshed
-    // if (this._devicePixelRatio !== this._coreBrowserService.dpr) {
-    //   this._devicePixelRatio = this._coreBrowserService.dpr;
-    //   this.handleResize(this._terminal.cols, this._terminal.rows);
-    // }
+    if (this._devicePixelRatio !== this._coreBrowserService.dpr) {
+       this._devicePixelRatio = this._coreBrowserService.dpr;
+       this.handleResize(this._terminal.cols, this._terminal.rows);
+    }
   }
-  handleResize(cols: number, rows: number) {}
   handleCharSizeChanged() {}
   handleBlur() {};
   handleFocus() {};
@@ -78,5 +83,77 @@ export class SkiaRenderer implements IRenderer {
   renderRows(start: number, end: number) {};
   // TODO: should I clear whatever Skia uses as a char cache here?
   clearTextureAtlas() {};
+
+  public handleResize(cols: number, rows: number): void {
+    // Update character and canvas dimensions
+    this._updateDimensions();
+
+    // Resize the canvas
+    this._canvas.width = this.dimensions.device.canvas.width;
+    this._canvas.height = this.dimensions.device.canvas.height;
+    this._canvas.style.width = `${this.dimensions.css.canvas.width}px`;
+    this._canvas.style.height = `${this.dimensions.css.canvas.height}px`;
+
+    // Resize the screen
+    this._core.screenElement!.style.width = `${this.dimensions.css.canvas.width}px`;
+    this._core.screenElement!.style.height = `${this.dimensions.css.canvas.height}px`;
+
+    // TODO: force a rerender/paint
+  }
+
+  /**
+   * Recalculates the character and canvas dimensions.
+   */
+  private _updateDimensions(): void {
+    // Perform a new measure if the CharMeasure dimensions are not yet available
+    if (!this._charSizeService.width || !this._charSizeService.height) {
+      return;
+    }
+
+    // Calculate the device character width. Width is floored as it must be drawn to an integer grid
+    // in order for the char atlas glyphs to not be blurry.
+    this.dimensions.device.char.width = Math.floor(this._charSizeService.width * this._devicePixelRatio);
+
+    // Calculate the device character height. Height is ceiled in case devicePixelRatio is a
+    // floating point number in order to ensure there is enough space to draw the character to the
+    // cell.
+    this.dimensions.device.char.height = Math.ceil(this._charSizeService.height * this._devicePixelRatio);
+
+    // Calculate the device cell height, if lineHeight is _not_ 1, the resulting value will be
+    // floored since lineHeight can never be lower then 1, this guarentees the device cell height
+    // will always be larger than device char height.
+    this.dimensions.device.cell.height = Math.floor(this.dimensions.device.char.height * this._optionsService.rawOptions.lineHeight);
+
+    // Calculate the y offset within a cell that glyph should draw at in order for it to be centered
+    // correctly within the cell.
+    this.dimensions.device.char.top = this._optionsService.rawOptions.lineHeight === 1 ? 0 : Math.round((this.dimensions.device.cell.height - this.dimensions.device.char.height) / 2);
+
+    // Calculate the device cell width, taking the letterSpacing into account.
+    this.dimensions.device.cell.width = this.dimensions.device.char.width + Math.round(this._optionsService.rawOptions.letterSpacing);
+
+    // Calculate the x offset with a cell that text should draw from in order for it to be centered
+    // correctly within the cell.
+    this.dimensions.device.char.left = Math.floor(this._optionsService.rawOptions.letterSpacing / 2);
+
+    // Recalculate the canvas dimensions, the device dimensions define the actual number of pixel in
+    // the canvas
+    this.dimensions.device.canvas.height = this._terminal.rows * this.dimensions.device.cell.height;
+    this.dimensions.device.canvas.width = this._terminal.cols * this.dimensions.device.cell.width;
+
+    // The the size of the canvas on the page. It's important that this rounds to nearest integer
+    // and not ceils as browsers often have floating point precision issues where
+    // `window.devicePixelRatio` ends up being something like `1.100000023841858` for example, when
+    // it's actually 1.1. Ceiling may causes blurriness as the backing canvas image is 1 pixel too
+    // large for the canvas element size.
+    this.dimensions.css.canvas.height = Math.round(this.dimensions.device.canvas.height / this._devicePixelRatio);
+    this.dimensions.css.canvas.width = Math.round(this.dimensions.device.canvas.width / this._devicePixelRatio);
+
+    // Get the CSS dimensions of an individual cell. This needs to be derived from the calculated
+    // device pixel canvas value above. CharMeasure.width/height by itself is insufficient when the
+    // page is not at 100% zoom level as CharMeasure is measured in CSS pixels, but the actual char
+    // size on the canvas can differ.
+    this.dimensions.css.cell.height = this.dimensions.device.cell.height / this._devicePixelRatio;
+    this.dimensions.css.cell.width = this.dimensions.device.cell.width / this._devicePixelRatio;
+  }
 }
 

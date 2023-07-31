@@ -34,14 +34,21 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
       return;
     }
 
+    // TODO: consider typing these and avoiding this `any`
+    const unsafeCore = core as any;
+    const coreBrowserService: ICoreBrowserService = unsafeCore._coreBrowserService;
+    const charSizeService: ICharSizeService = unsafeCore._charSizeService;
+    const renderService: IRenderService = unsafeCore._renderService;
+    const optionsService: IOptionsService = core.optionsService;
+
     this._terminal = terminal;
     this._renderer = this.register(new SkiaRenderer(
       terminal,
       this._canvasKit,
+      coreBrowserService,
+      charSizeService,
+      optionsService,
     ));
-
-    const unsafeCore = core as any;
-    const renderService: IRenderService = unsafeCore._renderService;
     renderService.setRenderer(this._renderer);
 
     this.register(toDisposable(() => {
