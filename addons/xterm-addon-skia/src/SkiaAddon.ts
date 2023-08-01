@@ -10,7 +10,7 @@ import { ICoreService, IDecorationService, IOptionsService } from 'common/servic
 import { ITerminalAddon, Terminal } from 'xterm';
 import { SkiaRenderer } from './SkiaRenderer';
 import { CanvasKitInit } from "./canvaskit";
-import type { CanvasKit } from "canvaskit-wasm";
+import type { CanvasKit, Typeface } from "canvaskit-wasm";
 
 // TODO: preload fonts possible/needed? see https://github.com/chengluyu/canvaskit-editor/blob/main/src/index.ts
 
@@ -18,6 +18,7 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
   private _terminal?: Terminal;
   private _renderer?: SkiaRenderer;
   private _canvasKit?: CanvasKit;
+  private _typeface?: Typeface;
 
   public activate(terminal: Terminal): void {
     const core = (terminal as any)._core as ITerminal;
@@ -25,9 +26,20 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
       this.register(core.onWillOpen(() => this.activate(terminal)));
       return;
     }
-    if (!this._canvasKit) {
-      CanvasKitInit().then((canvasKit: CanvasKit) => {
+    if (!this._canvasKit || !this._typeface) {
+      // TODO: wcandillon did the hard work, now wait for https://github.com/Shopify/react-native-skia/pull/1717/files
+      // to merge, waiting on chrome release process (expected mid august)
+      // will be ready when `FontMgr.matchFamilyStyle` is released on  https://skia.googlesource.com/skia/+/refs/heads/main/modules/canvaskit/CHANGELOG.md)
+      const firaCodeUrl = "https://fonts.gstatic.com/s/firacode/v21/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_D1sJVD7NuzlojwUKQ.woff2";
+      const fontArrayBuffer: Promise<ArrayBuffer> = fetch(firaCodeUrl).then((response) => response.arrayBuffer());
+      const init: Promise<CanvasKit> = CanvasKitInit();
+      Promise.all([init, fontArrayBuffer]).then(([canvasKit, fontArrayBuffer]: [CanvasKit, ArrayBuffer]) => {
         this._canvasKit = canvasKit;
+        const typeface = canvasKit.Typeface.MakeFreeTypeFaceFromData(fontArrayBuffer)!;
+        if (typeface === null) {
+          throw new Error("cannot create typeface (likely problem loading font)");
+        }
+        this._typeface = typeface;
         this.activate(terminal);
       })
       // TODO: what I can do with a caught error here?
@@ -45,6 +57,7 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
     this._renderer = this.register(new SkiaRenderer(
       terminal,
       this._canvasKit,
+      this._typeface,
       coreBrowserService,
       charSizeService,
       optionsService,

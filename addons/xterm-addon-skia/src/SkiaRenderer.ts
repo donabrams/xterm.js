@@ -12,49 +12,64 @@ import { IEvent } from 'common/EventEmitter';
 import { IDisposable } from 'common/Types';
 import { Terminal } from 'xterm';
 import { ITerminal } from 'browser/Types';
-import type { CanvasKit, Surface } from "canvaskit-wasm";
+import type { Canvas, CanvasKit, Surface, Typeface } from "canvaskit-wasm";
 import { IOptionsService } from 'common/services/Services';
 
 const disposableStub: IDisposable = { dispose: () => {} };
 
 export class SkiaRenderer implements IRenderer {
-  private _devicePixelRatio: number = 0
+  private _devicePixelRatio: number = 0;
   private _canvas: HTMLCanvasElement;
-  private _canvasKit: CanvasKit;
   private _surface: Surface;
   private _core: ITerminal;
   public readonly dimensions: IRenderDimensions = createRenderDimensions();
 
   constructor(
       private readonly _terminal: Terminal,
-      canvasKit: CanvasKit,
+      private readonly _canvasKit: CanvasKit,
+      private readonly _typeface: Typeface,
       private readonly _coreBrowserService: ICoreBrowserService,
       private readonly _charSizeService: ICharSizeService,
       private readonly _optionsService: IOptionsService) {
-    this._canvasKit = canvasKit;
     this._core = (this._terminal as any)._core as ITerminal;
 
     // setup initial canvas element
-    this._devicePixelRatio = this._coreBrowserService.dpr
     this._canvas = document.createElement('canvas');
     // abuse handleDevicePixelRatioChange to setup _canvas appropriately
     this.handleDevicePixelRatioChange();
     this._core.screenElement!.appendChild(this._canvas);
 
     // TODO: try MakeGPUCanvasSurface after this works initially
-    const surface = canvasKit.MakeWebGLCanvasSurface(this._canvas);
+    const surface = this._canvasKit.MakeWebGLCanvasSurface(this._canvas);
     if (surface === null) {
       throw new Error("cannot make the canvas surface");
     }
     this._surface = surface;
-    this.drawFrame();
+    this._surface.drawOnce(this.drawTestFrame.bind(this));
   }
 
-  private drawFrame() {
-    const skcanvas = this._surface.getCanvas();
-    skcanvas.scale(this._devicePixelRatio, this._devicePixelRatio);
-    skcanvas.clear(this._canvasKit.Color(255, 0, 0, 0.5));
-    this._surface.flush();
+  private drawTestFrame(canvas: Canvas) {
+    canvas.scale(this._devicePixelRatio, this._devicePixelRatio);
+    canvas.clear(this._canvasKit.Color(255, 255, 255, 1.0));
+
+    // rectangle
+    const paint_rec = new this._canvasKit.Paint();
+    paint_rec.setColor(this._canvasKit.Color(128, 128, 128, 0.95));
+    paint_rec.setStyle(this._canvasKit.PaintStyle.Stroke);
+    paint_rec.setAntiAlias(true);
+    const shape_rec = this._canvasKit.RRectXY(this._canvasKit.LTRBRect(10, 60, 210, 260), 25, 15);
+    canvas.drawRRect(shape_rec, paint_rec);
+
+    // text
+    const color_txt = this._canvasKit.Color(10, 10, 10, 0.95)
+    const paint_txt = new this._canvasKit.Paint();
+    paint_txt.setColor(color_txt);
+    paint_txt.setStyle(this._canvasKit.PaintStyle.Stroke);
+    paint_txt.setAntiAlias(true);
+    const font = new this._canvasKit.Font(this._typeface, 24);
+    canvas.drawText("Hello World", 200, 200, paint_txt, font);
+    // cache checker
+    console.log(`just latin set`);
   }
 
   /**
@@ -67,6 +82,11 @@ export class SkiaRenderer implements IRenderer {
 
   dispose() {}
   public handleDevicePixelRatioChange(): void {
+    console.log({
+      "handleDevicePixelRatioChange": 1,
+      "this._coreBrowserService.dpr": this._coreBrowserService.dpr,
+      "this._devicePixelRatio": this._devicePixelRatio,
+    });
     // If the device pixel ratio changed, the char atlas needs to be regenerated
     // and the terminal needs to refreshed
     if (this._devicePixelRatio !== this._coreBrowserService.dpr) {
@@ -105,6 +125,11 @@ export class SkiaRenderer implements IRenderer {
    * Recalculates the character and canvas dimensions.
    */
   private _updateDimensions(): void {
+    console.log({
+      "_updateDimensions": 1,
+      "_charSizeService.width": !this._charSizeService.width,
+      "_charSizeService.height": !this._charSizeService.height,
+    });
     // Perform a new measure if the CharMeasure dimensions are not yet available
     if (!this._charSizeService.width || !this._charSizeService.height) {
       return;

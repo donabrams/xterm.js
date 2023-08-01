@@ -267,9 +267,8 @@ function createTerminal(): void {
     //TODO: figure out a better way to change renderer
     //addons.webgl.instance = new WebglAddon();
     addons.skia.instance = new SkiaAddon();
-    console.log("skiaAddon instance loaded");
   } catch (e) {
-    console.warn(e);
+    console.warn('error during loading skia addon:', e);
   }
   addons['web-links'].instance = new WebLinksAddon();
   typedTerm.loadAddon(addons.fit.instance);
@@ -309,7 +308,6 @@ function createTerminal(): void {
     }
   }
   if (addons.skia.instance) {
-    console.log("loading skia");
     try {
       typedTerm.loadAddon(addons.skia.instance);
       term.open(terminalContainer);
