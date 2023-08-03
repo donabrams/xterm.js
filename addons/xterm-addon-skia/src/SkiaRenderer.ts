@@ -13,7 +13,7 @@ import { IDisposable } from 'common/Types';
 import { Terminal } from 'xterm';
 import { ITerminal } from 'browser/Types';
 import type { Canvas, CanvasKit, Surface, Typeface } from "canvaskit-wasm";
-import { IOptionsService } from 'common/services/Services';
+import { IBufferService, IOptionsService } from 'common/services/Services';
 
 const disposableStub: IDisposable = { dispose: () => {} };
 
@@ -30,7 +30,8 @@ export class SkiaRenderer implements IRenderer {
       private readonly _typeface: Typeface,
       private readonly _coreBrowserService: ICoreBrowserService,
       private readonly _charSizeService: ICharSizeService,
-      private readonly _optionsService: IOptionsService) {
+      private readonly _optionsService: IOptionsService,
+      private readonly _bufferService: IBufferService) {
     this._core = (this._terminal as any)._core as ITerminal;
 
     // setup initial canvas element
@@ -45,7 +46,7 @@ export class SkiaRenderer implements IRenderer {
       throw new Error("cannot make the canvas surface");
     }
     this._surface = surface;
-    this._surface.drawOnce(this.drawTestFrame.bind(this));
+    //this._surface.drawOnce(this.drawTestFrame.bind(this));
   }
 
   private drawTestFrame(canvas: Canvas) {
@@ -100,8 +101,50 @@ export class SkiaRenderer implements IRenderer {
   handleSelectionChanged(start: [number, number] | undefined, end: [number, number] | undefined, columnSelectMode: boolean) {};
   handleCursorMove() {};
   clear() {};
-  renderRows(start: number, end: number) {};
-  // TODO: should I clear whatever Skia uses as a char cache here?
+  renderRows(start: number, end: number) {
+    const newLines = this.getLinesToRender(start, end);
+    this.naiveDraw(start, end, newLines);
+  };
+
+  private terminalContent: string[] = [];
+
+  private naiveDraw(start: number, end:number, replacements: string[]) {
+    this.terminalContent.splice(start, end-start+1, ...replacements);
+    console.log({"naiveDraw": this.terminalContent});
+    this._surface.requestAnimationFrame(this.drawTerminalContent.bind(this));
+  }
+  private drawTerminalContent(canvas: Canvas) {
+    canvas.clear(this._canvasKit.Color(255, 255, 255, 1.0));
+    const color_txt = this._canvasKit.Color(10, 10, 10, 0.95)
+    const paint_txt = new this._canvasKit.Paint();
+    paint_txt.setColor(color_txt);
+    paint_txt.setStyle(this._canvasKit.PaintStyle.Stroke);
+    paint_txt.setAntiAlias(true);
+    const font = new this._canvasKit.Font(this._typeface, 24);
+    const row_height = this._charSizeService.height;
+    for (let row = 0, height = 0; row <= this.terminalContent.length; row++, height+= row_height) {
+      if (this.terminalContent[row] && this.terminalContent[row].length) {
+        canvas.drawText(this.terminalContent[row], 0, height, paint_txt, font);
+      }
+    }
+  }
+
+  private getLinesToRender(start: number, end: number) {
+    const offset = this._bufferService.buffer.ydisp;
+    const b_start = offset + start;
+    const b_end = offset + end;
+    const toRender = [];
+    for (let row = b_start; row <= b_end; row++) {
+      const line = this._bufferService.buffer.lines.get(row);
+      toRender.push(!line || line.length === 0 ? "" : line.translateToString(true));
+    }
+    console.log({"getLinesToRender": `${start}-${end}`, dimensions: this.dimensions, offset, toRender});
+    return toRender;
+  }
+  
+  // TODO: "emit the refresh event after rendering rows to the screen."
+
+  // TODO: should I clear whatever Skia uses as a glyph cache here?
   clearTextureAtlas() {};
 
   public handleResize(cols: number, rows: number): void {

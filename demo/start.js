@@ -68,7 +68,7 @@ const clientConfig = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: "addons/xterm-addon-skia/node_modules/canvaskit-wasm/bin/canvaskit.wasm",
+          from: "addons/xterm-addon-skia/node_modules/canvaskit-wasm/bin/profiling/canvaskit.wasm",
           to: path.resolve(__dirname, 'dist') + "/canvaskit.wasm",
         },
       ]})

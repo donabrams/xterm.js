@@ -6,7 +6,7 @@
 import { ICharacterJoinerService, ICharSizeService, ICoreBrowserService, IRenderService, IThemeService } from 'browser/services/Services';
 import { ITerminal } from 'browser/Types';
 import { Disposable, toDisposable } from 'common/Lifecycle';
-import { ICoreService, IDecorationService, IOptionsService } from 'common/services/Services';
+import { IBufferService, ICoreService, IDecorationService, IOptionsService } from 'common/services/Services';
 import { ITerminalAddon, Terminal } from 'xterm';
 import { SkiaRenderer } from './SkiaRenderer';
 import { CanvasKitInit } from "./canvaskit";
@@ -52,6 +52,7 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
     const charSizeService: ICharSizeService = unsafeCore._charSizeService;
     const renderService: IRenderService = unsafeCore._renderService;
     const optionsService: IOptionsService = core.optionsService;
+    const bufferService: IBufferService = unsafeCore._bufferService;
 
     this._terminal = terminal;
     this._renderer = this.register(new SkiaRenderer(
@@ -61,6 +62,7 @@ export class SkiaAddon extends Disposable implements ITerminalAddon {
       coreBrowserService,
       charSizeService,
       optionsService,
+      bufferService,
     ));
     renderService.setRenderer(this._renderer);
 

@@ -1,6 +1,7 @@
 import type { CanvasKit } from "canvaskit-wasm";
 import initialize from "canvaskit-wasm";
-import * as all from "canvaskit-wasm";
+// TODO: use production not profiling build
+import * as all from "canvaskit-wasm/bin/profiling/canvaskit.js";
 
 type P = typeof initialize;
 const typedInit: P = all as any;
