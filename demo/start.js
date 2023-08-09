@@ -8,6 +8,7 @@
 const path = require('path');
 const webpack = require('webpack');
 const startServer = require('./server.js');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 startServer();
 
@@ -63,6 +64,19 @@ const clientConfig = {
     filename: 'client-bundle.js',
     path: path.resolve(__dirname, 'dist')
   },
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: "addons/xterm-addon-skia/node_modules/canvaskit-wasm/bin/profiling/canvaskit.wasm",
+          to: path.resolve(__dirname, 'dist') + "/canvaskit.wasm",
+        },
+        {
+          from: "addons/xterm-addon-skia/ErbosDraco.ttf",
+          to: path.resolve(__dirname, 'dist') + "/ErbosDraco.ttf",
+        },
+      ]})
+  ],
   mode: 'development',
   watch: true
 };

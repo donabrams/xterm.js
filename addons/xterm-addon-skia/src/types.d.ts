@@ -1,0 +1,1 @@
+declare module 'canvaskit-wasm/bin/profiling/canvaskit.js';

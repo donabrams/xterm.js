@@ -29,6 +29,7 @@ export class AddonManager implements IDisposable {
       dispose: instance.dispose,
       isDisposed: false
     };
+
     this._addons.push(loadedAddon);
     instance.dispose = () => this._wrappedAddonDispose(loadedAddon);
     instance.activate(terminal as any);
