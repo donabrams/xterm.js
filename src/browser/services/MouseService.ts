@@ -34,6 +34,7 @@ export class MouseService implements IMouseService {
 
     // due to rounding issues in zoom states pixel values might be negative or overflow actual canvas
     // ignore those events effectively narrowing mouse area a tiny bit at the edges
+    // TODO: remove dependency on charSizeService here. Instead, consider dimensions?
     if (!this._charSizeService.hasValidSize
       || coords[0] < 0
       || coords[1] < 0
