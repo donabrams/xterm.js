@@ -31,18 +31,12 @@ export class MouseService implements IMouseService {
 
   public getMouseReportCoords(event: MouseEvent, element: HTMLElement): { col: number, row: number, x: number, y: number } | undefined {
     const coords = getCoordsRelativeToElement(window, event, element);
-
-    // due to rounding issues in zoom states pixel values might be negative or overflow actual canvas
-    // ignore those events effectively narrowing mouse area a tiny bit at the edges
-    // TODO: remove dependency on charSizeService here. Instead, consider dimensions?
-    if (!this._charSizeService.hasValidSize
-      || coords[0] < 0
-      || coords[1] < 0
-      || coords[0] >= this._renderService.dimensions.css.canvas.width
-      || coords[1] >= this._renderService.dimensions.css.canvas.height) {
+    // TODO: remove dependency on char size service and use dimensions instead
+    if (!this._charSizeService.hasValidSize) {
       return undefined;
     }
-
+    coords[0] = Math.min(Math.max(coords[0], 0), this._renderService.dimensions.css.canvas.width - 1);
+    coords[1] = Math.min(Math.max(coords[1], 0), this._renderService.dimensions.css.canvas.height - 1);
     return {
       col: Math.floor(coords[0] / this._renderService.dimensions.css.cell.width),
       row: Math.floor(coords[1] / this._renderService.dimensions.css.cell.height),
