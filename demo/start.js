@@ -71,6 +71,10 @@ const clientConfig = {
           from: "addons/xterm-addon-skia/node_modules/canvaskit-wasm/bin/profiling/canvaskit.wasm",
           to: path.resolve(__dirname, 'dist') + "/canvaskit.wasm",
         },
+        {
+          from: "addons/xterm-addon-skia/ErbosDraco.ttf",
+          to: path.resolve(__dirname, 'dist') + "/ErbosDraco.ttf",
+        },
       ]})
   ],
   mode: 'development',

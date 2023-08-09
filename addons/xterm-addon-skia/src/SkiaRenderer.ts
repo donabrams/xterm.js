@@ -12,7 +12,7 @@ import { IEvent } from 'common/EventEmitter';
 import { IDisposable } from 'common/Types';
 import { Terminal } from 'xterm';
 import { ITerminal } from 'browser/Types';
-import type { Canvas, CanvasKit, Surface, Typeface } from "canvaskit-wasm";
+import type { Canvas, CanvasKit, FontMgr, Paragraph, ParagraphStyle, Surface, TextFontFeatures, TextShadow, TextStyle, Typeface } from "canvaskit-wasm";
 import { IBufferService, IOptionsService } from 'common/services/Services';
 
 const disposableStub: IDisposable = { dispose: () => {} };
@@ -28,10 +28,12 @@ export class SkiaRenderer implements IRenderer {
       private readonly _terminal: Terminal,
       private readonly _canvasKit: CanvasKit,
       private readonly _typeface: Typeface,
+      private readonly _fontMgr: FontMgr,
       private readonly _coreBrowserService: ICoreBrowserService,
       private readonly _charSizeService: ICharSizeService,
       private readonly _optionsService: IOptionsService,
-      private readonly _bufferService: IBufferService) {
+      private readonly _bufferService: IBufferService,
+      private readonly _fontName: string) {
     this._core = (this._terminal as any)._core as ITerminal;
 
     // setup initial canvas element
@@ -71,6 +73,29 @@ export class SkiaRenderer implements IRenderer {
     canvas.drawText("Hello World", 200, 200, paint_txt, font);
     // cache checker
     console.log(`just latin set`);
+
+
+    //verify font is loaded into fontMgr
+    console.log({countFamilies: this._fontMgr.countFamilies()});
+    for (let i = 0; i < this._fontMgr.countFamilies(); i++) {
+      console.log(this._fontMgr.getFamilyName(i));
+    }
+
+    const paragraphStyle: ParagraphStyle = new this._canvasKit.ParagraphStyle({
+      textStyle: {
+        color: color_txt,
+        fontFamilies: [this._fontName],
+        fontSize: 24,
+        //shadows,
+      },
+      textAlign: this._canvasKit.TextAlign.Left,
+      maxLines: 1
+    })
+    const paragraphBuilder = this._canvasKit.ParagraphBuilder.Make(paragraphStyle, this._fontMgr);
+    paragraphBuilder.addText("--> WORKS");
+    const p = paragraphBuilder.build()
+    p.layout(800);
+    canvas.drawParagraph(p, 100, 100);
   }
 
   /**
@@ -114,17 +139,61 @@ export class SkiaRenderer implements IRenderer {
     this._surface.requestAnimationFrame(this.drawTerminalContent.bind(this));
   }
   private drawTerminalContent(canvas: Canvas) {
-    canvas.clear(this._canvasKit.Color(255, 255, 255, 1.0));
-    const color_txt = this._canvasKit.Color(10, 10, 10, 0.95)
+    //canvas.clear(this._canvasKit.Color(255, 255, 255, 1.0));
+    canvas.clear(this._canvasKit.Color(0, 0, 0, 1.0));
+    //const color_txt = this._canvasKit.Color(10, 10, 10, 0.95)
+    //ffe6ff
+    const color_txt = this._canvasKit.Color(255, 230, 255, 1.0)
     const paint_txt = new this._canvasKit.Paint();
     paint_txt.setColor(color_txt);
     paint_txt.setStyle(this._canvasKit.PaintStyle.Stroke);
     paint_txt.setAntiAlias(true);
-    const font = new this._canvasKit.Font(this._typeface, 24);
-    const row_height = this._charSizeService.height;
+    const row_height = this.dimensions.device.char.height;
+
+    const rem = this.dimensions.css.cell.height;
+    // copied from https://codepen.io/acupoftee/pen/RwNXxyq for now
+    const shadows: TextShadow[] = [
+      //0 0 0.6rem #ffe6ff
+      { color: this._canvasKit.Color(255,230, 255), offset: [0,0], blurRadius: rem * 1.0 },
+      //0 0 1.5rem #ff65bd,
+      { color: this._canvasKit.Color(255,101, 189), offset: [0,0], blurRadius: rem * 1.5 },
+      //-0.2rem 0.1rem 1rem #ff65bd
+      { color: this._canvasKit.Color(255,101, 189), offset: [rem * -.2, rem * .1], blurRadius: rem * 2 },
+      //0.2rem 0.1rem 1rem #ff65bd,
+      { color: this._canvasKit.Color(255,101, 189), offset: [rem * .2, rem * .1], blurRadius: rem },
+      //0 -0.5rem 2rem #ff2483
+      { color: this._canvasKit.Color(255,36, 131), offset: [0, rem * -.5], blurRadius: rem * 1.5 },
+      //0 0.5rem 3rem #ff2483
+      { color: this._canvasKit.Color(255,36, 131), offset: [0, rem * .5], blurRadius: rem * 3 },
+    ];
+
+    //verify font is loaded into fontMgr
+    console.log({countFamilies: this._fontMgr.countFamilies()});
+    for (let i = 0; i < this._fontMgr.countFamilies(); i++) {
+      console.log(this._fontMgr.getFamilyName(i));
+    }
+
+    //https://stackoverflow.com/questions/74756334/vs-code-behavior-of-editor-fontligatures-and-editor-fontvariations
+    const textStyle: TextStyle = {
+      color: color_txt,
+      fontFamilies: [this._fontName],
+      fontSize: this.dimensions.css.cell.height,
+      shadows,
+    }
+    const paragraphStyle: ParagraphStyle = new this._canvasKit.ParagraphStyle({
+      textStyle,
+      textAlign: this._canvasKit.TextAlign.Left,
+      maxLines: 1
+    })
+    const max_width = this.dimensions.device.canvas.width;
     for (let row = 0, height = 0; row <= this.terminalContent.length; row++, height+= row_height) {
       if (this.terminalContent[row] && this.terminalContent[row].length) {
-        canvas.drawText(this.terminalContent[row], 0, height, paint_txt, font);
+        const pb = this._canvasKit.ParagraphBuilder.Make(paragraphStyle, this._fontMgr);
+        pb.addText(this.terminalContent[row]);
+        const paragraph: Paragraph = pb.build();
+        paragraph.layout(max_width);
+        canvas.drawParagraph(paragraph, 10, height);
+        //canvas.drawText(this.terminalContent[row], 0, height, paint_txt, font);
       }
     }
   }

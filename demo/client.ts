@@ -761,7 +761,7 @@ function writeCustomGlyphHandler(): void {
 }
 
 function loadTest(): void {
-  const rendererName = 'skia'; //addons.webgl.instance ? 'webgl' : !!addons.canvas.instance ? 'canvas' : 'dom';
+  const rendererName = !!addons.skia.instance ? 'skia' : !!addons.webgl.instance ? 'webgl' : !!addons.canvas.instance ? 'canvas' : 'dom';
   const testData = [];
   let byteCount = 0;
   for (let i = 0; i < 50; i++) {
